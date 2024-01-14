@@ -15,14 +15,13 @@ import (
 	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/core/event"
-	"cosmossdk.io/core/genesis"
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
+	"cosmossdk.io/server/v2/stf"
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/tx/signing"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -50,13 +49,6 @@ var (
 	_ module.HasServices  = appModule{}
 )
 
-// BaseAppOption is a depinject.AutoGroupType which can be used to pass
-// BaseApp options into the depinject. It should be used carefully.
-type BaseAppOption func(*baseapp.BaseApp)
-
-// IsManyPerContainerType indicates that this is a depinject.ManyPerContainerType.
-func (b BaseAppOption) IsManyPerContainerType() {}
-
 func init() {
 	appmodule.Register(&runtimev1alpha1.Module{},
 		appmodule.Provide(
@@ -65,13 +57,11 @@ func init() {
 			ProvideKVStoreKey,
 			ProvideTransientStoreKey,
 			ProvideMemoryStoreKey,
-			ProvideGenesisTxHandler,
 			ProvideKVStoreService,
 			ProvideMemoryStoreService,
 			ProvideTransientStoreService,
 			ProvideEventService,
 			ProvideBasicManager,
-			ProvideAppVersionModifier,
 			ProvideAddressCodec,
 		),
 		appmodule.Invoke(SetupAppBuilder),
@@ -82,7 +72,7 @@ func ProvideApp(interfaceRegistry codectypes.InterfaceRegistry) (
 	codec.Codec,
 	*codec.LegacyAmino,
 	*AppBuilder,
-	*baseapp.MsgServiceRouter,
+	*stf.MsgRouterBuilder,
 	appmodule.AppModule,
 	protodesc.Resolver,
 	protoregistry.MessageTypeResolver,
@@ -104,18 +94,18 @@ func ProvideApp(interfaceRegistry codectypes.InterfaceRegistry) (
 	std.RegisterLegacyAminoCodec(amino)
 
 	cdc := codec.NewProtoCodec(interfaceRegistry)
-	msgServiceRouter := baseapp.NewMsgServiceRouter()
+	msgRouterBuilder := stf.NewMsgRouterBuilder()
 	app := &App{
 		storeKeys:         nil,
 		interfaceRegistry: interfaceRegistry,
 		cdc:               cdc,
 		amino:             amino,
 		basicManager:      module.BasicManager{},
-		msgServiceRouter:  msgServiceRouter,
+		msgRouterBuilder:  msgRouterBuilder,
 	}
 	appBuilder := &AppBuilder{app}
 
-	return cdc, amino, appBuilder, msgServiceRouter, appModule{app}, protoFiles, protoTypes, nil
+	return cdc, amino, appBuilder, msgRouterBuilder, appModule{app}, protoFiles, protoTypes, nil
 }
 
 type AppInputs struct {
@@ -126,7 +116,6 @@ type AppInputs struct {
 	AppBuilder         *AppBuilder
 	Modules            map[string]appmodule.AppModule
 	CustomModuleBasics map[string]module.AppModuleBasic `optional:"true"`
-	BaseAppOptions     []BaseAppOption
 	InterfaceRegistry  codectypes.InterfaceRegistry
 	LegacyAmino        *codec.LegacyAmino
 	Logger             log.Logger
@@ -134,11 +123,10 @@ type AppInputs struct {
 
 func SetupAppBuilder(inputs AppInputs) {
 	app := inputs.AppBuilder.app
-	app.baseAppOptions = inputs.BaseAppOptions
 	app.config = inputs.Config
 	app.appConfig = inputs.AppConfig
 	app.logger = inputs.Logger
-	app.ModuleManager = module.NewManagerFromMap(inputs.Modules)
+	app.moduleManager = module.NewManagerFromMap(inputs.Modules)
 
 	for name, mod := range inputs.Modules {
 		if customBasicMod, ok := inputs.CustomModuleBasics[name]; ok {
@@ -219,10 +207,6 @@ func ProvideMemoryStoreKey(key depinject.ModuleKey, app *AppBuilder) *storetypes
 	return storeKey
 }
 
-func ProvideGenesisTxHandler(appBuilder *AppBuilder) genesis.TxHandler {
-	return appBuilder.app
-}
-
 func ProvideKVStoreService(config *runtimev1alpha1.Module, key depinject.ModuleKey, app *AppBuilder) store.KVStoreService {
 	storeKey := ProvideKVStoreKey(config, key, app)
 	return kvStoreService{key: storeKey}
@@ -244,10 +228,6 @@ func ProvideEventService() event.Service {
 
 func ProvideBasicManager(app *AppBuilder) module.BasicManager {
 	return app.app.basicManager
-}
-
-func ProvideAppVersionModifier(app *AppBuilder) baseapp.AppVersionModifier {
-	return app.app
 }
 
 type (

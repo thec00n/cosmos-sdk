@@ -219,7 +219,7 @@ func NewSimApp(
 	}
 	baseAppOptions = append(baseAppOptions, voteExtOp, baseapp.SetOptimisticExecution())
 
-	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+	app.App = appBuilder.Build(db, traceStore)
 
 	// register streaming services
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
@@ -256,7 +256,7 @@ func NewSimApp(
 	// 	return app.App.InitChainer(ctx, req)
 	// })
 
-	if err := app.Load(loadLatest); err != nil {
+	if err := app.Load(); err != nil {
 		panic(err)
 	}
 

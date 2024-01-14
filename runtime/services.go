@@ -11,7 +11,7 @@ import (
 
 func (a *App) registerRuntimeServices(cfg module.Configurator) error {
 	appv1alpha1.RegisterQueryServer(cfg.QueryServer(), services.NewAppQueryService(a.appConfig))
-	autocliv1.RegisterQueryServer(cfg.QueryServer(), services.NewAutoCLIQueryService(a.ModuleManager.Modules))
+	autocliv1.RegisterQueryServer(cfg.QueryServer(), services.NewAutoCLIQueryService(a.moduleManager.Modules))
 
 	reflectionSvc, err := services.NewReflectionService()
 	if err != nil {

@@ -10,6 +10,9 @@ require (
 	cosmossdk.io/errors v1.0.0
 	cosmossdk.io/log v1.2.1
 	cosmossdk.io/math v1.2.0
+	cosmossdk.io/server/v2/appmanager v0.0.0-00010101000000-000000000000
+	cosmossdk.io/server/v2/core v0.0.0-00010101000000-000000000000
+	cosmossdk.io/server/v2/stf v0.0.0-00010101000000-000000000000
 	cosmossdk.io/store v1.0.1
 	cosmossdk.io/x/auth v0.0.0-00010101000000-000000000000
 	cosmossdk.io/x/bank v0.0.0-00010101000000-000000000000
@@ -59,7 +62,7 @@ require (
 	golang.org/x/sync v0.5.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20231212172506-995d672761c0
 	google.golang.org/grpc v1.60.1
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.32.0
 	gotest.tools/v3 v3.5.1
 	pgregory.net/rapid v1.1.0
 	sigs.k8s.io/yaml v1.4.0
@@ -186,6 +189,14 @@ replace (
 	cosmossdk.io/x/protocolpool => ./x/protocolpool
 	cosmossdk.io/x/slashing => ./x/slashing
 	cosmossdk.io/x/staking => ./x/staking
+)
+
+// server v2 integration
+replace (
+	cosmossdk.io/server/v2 => ./server/v2
+	cosmossdk.io/server/v2/appmanager => ./server/v2/appmanager
+	cosmossdk.io/server/v2/core => ./server/v2/core
+	cosmossdk.io/server/v2/stf => ./server/v2/stf
 )
 
 // Below are the long-lived replace of the Cosmos SDK

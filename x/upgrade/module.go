@@ -160,6 +160,14 @@ func (am AppModule) PreBlock(ctx context.Context) (appmodule.ResponsePreBlock, e
 	return PreBlocker(ctx, am.keeper)
 }
 
+// Implements serverv2/core/UpgradeBlocker.
+func (am AppModule) UpgradeBlocker() func(ctx context.Context) (bool, error) {
+	return func(ctx context.Context) (bool, error) {
+		result, err := PreBlocker(ctx, am.keeper)
+		return result.IsConsensusParamsChanged(), err
+	}
+}
+
 //
 // App Wiring Setup
 //

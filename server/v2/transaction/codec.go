@@ -33,6 +33,5 @@ func (c *Codec[T]) RegisterCodec(sc *signing.Context) error {
 // Decode decodes the transaction bytes into a transaction.Tx.
 func (c Codec[T]) Decode(txBytes []byte) (transaction.Tx, error) {
 	tx, err := c.decoder.Decode(txBytes)
-
 	return tx, err
 }

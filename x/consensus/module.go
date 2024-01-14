@@ -110,7 +110,7 @@ type ModuleOutputs struct {
 
 	Keeper        keeper.Keeper
 	Module        appmodule.AppModule
-	BaseAppOption runtime.BaseAppOption
+	BaseAppOption runtime.BaseAppOption // TODO find alternative to this
 }
 
 func ProvideModule(in ModuleInputs) ModuleOutputs {

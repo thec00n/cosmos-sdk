@@ -147,7 +147,7 @@ type ModuleOutputs struct {
 
 	CircuitKeeper  keeper.Keeper
 	Module         appmodule.AppModule
-	BaseappOptions runtime.BaseAppOption
+	BaseappOptions runtime.BaseAppOption // TODO find alternative to this
 }
 
 func ProvideModule(in ModuleInputs) ModuleOutputs {
