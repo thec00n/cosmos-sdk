@@ -2,19 +2,22 @@ package runtime
 
 import (
 	"encoding/json"
-	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"golang.org/x/exp/slices"
 
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
-	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/log"
+	"cosmossdk.io/server/v2/appmanager"
+	coreappmanager "cosmossdk.io/server/v2/core/appmanager"
+	"cosmossdk.io/server/v2/core/mempool"
+	"cosmossdk.io/server/v2/core/store"
+	servertx "cosmossdk.io/server/v2/core/transaction"
+	"cosmossdk.io/server/v2/stf"
 	storetypes "cosmossdk.io/store/types"
 	authtx "cosmossdk.io/x/auth/tx"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
@@ -28,7 +31,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
-// App is a wrapper around BaseApp and ModuleManager that can be used in hybrid
+// App is a wrapper around AppManager and ModuleManager that can be used in hybrid
 // app.go/app config scenarios or directly as a servertypes.Application instance.
 // To get an instance of *App, *AppBuilder must be requested as a dependency
 // in a container which declares the runtime module and the AppBuilder.Build()
@@ -36,56 +39,36 @@ import (
 //
 // App can be used to create a hybrid app.go setup where some configuration is
 // done declaratively with an app config and the rest of it is done the old way.
-// See simapp/app.go for an example of this setup.
+// See simapp/app_.go for an example of this setup.
 type App struct {
-	*baseapp.BaseApp
+	appmanager.AppManager[servertx.Tx]
 
-	ModuleManager     *module.Manager
+	// app manager dependencies
+	stf                 *stf.STF[servertx.Tx]
+	msgRouterBuilder    *stf.MsgRouterBuilder
+	mempool             mempool.Mempool[servertx.Tx]
+	prepareBlockHandler coreappmanager.PrepareHandler[servertx.Tx]
+	verifyBlockHandler  coreappmanager.ProcessHandler[servertx.Tx]
+	db                  store.Store
+
+	// app configuration
+	logger    log.Logger
+	config    *runtimev1alpha1.Module
+	appConfig *appv1alpha1.Config
+
+	// modules configuration
 	configurator      module.Configurator
-	config            *runtimev1alpha1.Module
 	storeKeys         []storetypes.StoreKey
 	interfaceRegistry codectypes.InterfaceRegistry
 	cdc               codec.Codec
 	amino             *codec.LegacyAmino
+	moduleManager     *module.Manager // TODO make serverv2 by default and compatible with legacy
 	basicManager      module.BasicManager
-	baseAppOptions    []BaseAppOption
-	msgServiceRouter  *baseapp.MsgServiceRouter
-	appConfig         *appv1alpha1.Config
-	logger            log.Logger
+
+	// Unknowns
 	// initChainer is the init chainer function defined by the app config.
 	// this is only required if the chain wants to add special InitChainer logic.
 	initChainer sdk.InitChainer
-}
-
-// RegisterModules registers the provided modules with the module manager and
-// the basic module manager. This is the primary hook for integrating with
-// modules which are not registered using the app config.
-func (a *App) RegisterModules(modules ...module.AppModule) error {
-	for _, appModule := range modules {
-		name := appModule.Name()
-		if _, ok := a.ModuleManager.Modules[name]; ok {
-			return fmt.Errorf("AppModule named %q already exists", name)
-		}
-
-		if _, ok := a.basicManager[name]; ok {
-			return fmt.Errorf("AppModuleBasic named %q already exists", name)
-		}
-
-		a.ModuleManager.Modules[name] = appModule
-		a.basicManager[name] = appModule
-		appModule.RegisterInterfaces(a.interfaceRegistry)
-		appModule.RegisterLegacyAminoCodec(a.amino)
-
-		if module, ok := appModule.(module.HasServices); ok {
-			module.RegisterServices(a.configurator)
-		} else if module, ok := appModule.(appmodule.HasServices); ok {
-			if err := module.RegisterServices(a.configurator); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // RegisterStores registers the provided store keys.
@@ -94,95 +77,45 @@ func (a *App) RegisterModules(modules ...module.AppModule) error {
 // To be used in combination of RegisterModules.
 func (a *App) RegisterStores(keys ...storetypes.StoreKey) error {
 	a.storeKeys = append(a.storeKeys, keys...)
-	a.MountStores(keys...)
+	// a.MountStores(keys...)
 
 	return nil
 }
 
 // Load finishes all initialization operations and loads the app.
-func (a *App) Load(loadLatest bool) error {
-	if len(a.config.InitGenesis) != 0 {
-		a.ModuleManager.SetOrderInitGenesis(a.config.InitGenesis...)
-		if a.initChainer == nil {
-			a.SetInitChainer(a.InitChainer)
-		}
+func (a *App) Load() error {
+	// set defaults
+	if a.mempool == nil {
+		// a.mempool = mempool.NewBasicMempool()
 	}
 
-	if len(a.config.ExportGenesis) != 0 {
-		a.ModuleManager.SetOrderExportGenesis(a.config.ExportGenesis...)
-	} else if len(a.config.InitGenesis) != 0 {
-		a.ModuleManager.SetOrderExportGenesis(a.config.InitGenesis...)
+	if a.prepareBlockHandler == nil {
+		// a.prepareBlockHandler = appmanager.DefaultPrepareBlockHandler
 	}
 
-	if len(a.config.PreBlockers) != 0 {
-		a.ModuleManager.SetOrderPreBlockers(a.config.PreBlockers...)
-		if a.BaseApp.PreBlocker() == nil {
-			a.SetPreBlocker(a.PreBlocker)
-		}
+	if a.verifyBlockHandler == nil {
+		// a.verifyBlockHandler = appmanager.DefaultProcessBlockHandler
 	}
 
-	if len(a.config.BeginBlockers) != 0 {
-		a.ModuleManager.SetOrderBeginBlockers(a.config.BeginBlockers...)
-		a.SetBeginBlocker(a.BeginBlocker)
+	appManagerBuilder := appmanager.Builder[servertx.Tx]{
+		STF:                 a.stf,
+		DB:                  a.db,
+		ValidateTxGasLimit:  a.config.GasConfig.ValidateTxGasLimit,
+		QueryGasLimit:       a.config.GasConfig.QueryGasLimit,
+		SimulationGasLimit:  a.config.GasConfig.SimulationGasLimit,
+		Mempool:             a.mempool,
+		PrepareBlockHandler: a.prepareBlockHandler,
+		VerifyBlockHandler:  a.verifyBlockHandler,
 	}
 
-	if len(a.config.EndBlockers) != 0 {
-		a.ModuleManager.SetOrderEndBlockers(a.config.EndBlockers...)
-		a.SetEndBlocker(a.EndBlocker)
+	appManager, err := appManagerBuilder.Build()
+	if err != nil {
+		return err
 	}
 
-	if len(a.config.Precommiters) != 0 {
-		a.ModuleManager.SetOrderPrecommiters(a.config.Precommiters...)
-		a.SetPrecommiter(a.Precommiter)
-	}
-
-	if len(a.config.PrepareCheckStaters) != 0 {
-		a.ModuleManager.SetOrderPrepareCheckStaters(a.config.PrepareCheckStaters...)
-		a.SetPrepareCheckStater(a.PrepareCheckStater)
-	}
-
-	if len(a.config.OrderMigrations) != 0 {
-		a.ModuleManager.SetOrderMigrations(a.config.OrderMigrations...)
-	}
-
-	if loadLatest {
-		if err := a.LoadLatestVersion(); err != nil {
-			return err
-		}
-	}
+	a.AppManager = appManager
 
 	return nil
-}
-
-// PreBlocker application updates every pre block
-func (a *App) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
-	return a.ModuleManager.PreBlock(ctx)
-}
-
-// BeginBlocker application updates every begin block
-func (a *App) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
-	return a.ModuleManager.BeginBlock(ctx)
-}
-
-// EndBlocker application updates every end block
-func (a *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
-	return a.ModuleManager.EndBlock(ctx)
-}
-
-// Precommiter application updates every commit
-func (a *App) Precommiter(ctx sdk.Context) {
-	err := a.ModuleManager.Precommit(ctx)
-	if err != nil {
-		panic(err)
-	}
-}
-
-// PrepareCheckStater application updates every commit
-func (a *App) PrepareCheckStater(ctx sdk.Context) {
-	err := a.ModuleManager.PrepareCheckState(ctx)
-	if err != nil {
-		panic(err)
-	}
 }
 
 // InitChainer initializes the chain.
@@ -191,7 +124,7 @@ func (a *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.Re
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	return a.ModuleManager.InitGenesis(ctx, a.cdc, genesisState)
+	return a.moduleManager.InitGenesis(ctx, a.cdc, genesisState)
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided
@@ -201,8 +134,8 @@ func (a *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 	// Register new tx routes from grpc-gateway.
 	authtx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 
-	// Register new CometBFT queries routes from grpc-gateway.
-	cmtservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
+	// Register new CometBFT queries routes from grpc-gateway. // TODO probably server should do that while taking an app.
+	// cmtservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 
 	// Register node gRPC service for grpc-gateway.
 	nodeservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
@@ -239,7 +172,8 @@ func (a *App) Configurator() module.Configurator {
 
 // LoadHeight loads a particular height
 func (a *App) LoadHeight(height int64) error {
-	return a.LoadVersion(height)
+	// return a.LoadVersion(height)
+	return nil
 }
 
 // DefaultGenesis returns a default genesis from the registered AppModuleBasic's.
@@ -256,7 +190,7 @@ func (a *App) GetStoreKeys() []storetypes.StoreKey {
 // It wraps `BaseApp.SetInitChainer` to allow setting a custom init chainer from an app.
 func (a *App) SetInitChainer(initChainer sdk.InitChainer) {
 	a.initChainer = initChainer
-	a.BaseApp.SetInitChainer(initChainer)
+	// a.BaseApp.SetInitChainer(initChainer)
 }
 
 // UnsafeFindStoreKey fetches a registered StoreKey from the App in linear time.

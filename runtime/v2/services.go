@@ -5,13 +5,13 @@ import (
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 
-	"github.com/cosmos/cosmos-sdk/runtime/services"
+	"cosmossdk.io/runtime/v2/services"
 	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
 func (a *App) registerRuntimeServices(cfg module.Configurator) error {
 	appv1alpha1.RegisterQueryServer(cfg.QueryServer(), services.NewAppQueryService(a.appConfig))
-	autocliv1.RegisterQueryServer(cfg.QueryServer(), services.NewAutoCLIQueryService(a.ModuleManager.Modules))
+	autocliv1.RegisterQueryServer(cfg.QueryServer(), services.NewAutoCLIQueryService(a.moduleManager.Modules))
 
 	reflectionSvc, err := services.NewReflectionService()
 	if err != nil {

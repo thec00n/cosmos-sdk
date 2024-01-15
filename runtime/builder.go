@@ -2,15 +2,13 @@ package runtime
 
 import (
 	"encoding/json"
-	"fmt"
+	"io"
 
-	coreappmanager "cosmossdk.io/server/v2/core/appmanager"
-	"cosmossdk.io/server/v2/core/mempool"
-	"cosmossdk.io/server/v2/core/store"
-	servertx "cosmossdk.io/server/v2/core/transaction"
-	"cosmossdk.io/server/v2/stf"
-	"cosmossdk.io/server/v2/stf/branch"
+	dbm "github.com/cosmos/cosmos-db"
+
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/cosmos/cosmos-sdk/version"
 )
 
 // AppBuilder is a type that is injected into a container by the runtime module
@@ -25,101 +23,25 @@ func (a *AppBuilder) DefaultGenesis() map[string]json.RawMessage {
 	return a.app.DefaultGenesis()
 }
 
-// RegisterModules registers the provided modules with the module manager and
-// the basic module manager. This is the primary hook for integrating with
-// modules which are not registered using the app config.
-func (a *AppBuilder) RegisterModules(modules ...module.AppModule) error {
-	for _, appModule := range modules {
-		name := appModule.Name()
-		if _, ok := a.app.moduleManager.Modules[name]; ok {
-			return fmt.Errorf("AppModule named %q already exists", name)
-		}
-
-		if _, ok := a.app.basicManager[name]; ok {
-			return fmt.Errorf("AppModuleBasic named %q already exists", name)
-		}
-
-		a.app.moduleManager.Modules[name] = appModule
-		a.app.basicManager[name] = appModule
-		appModule.RegisterInterfaces(a.app.interfaceRegistry)
-		appModule.RegisterLegacyAminoCodec(a.app.amino)
-
-		// if module, ok := appModule.(module.HasServices); ok {
-		// 	module.RegisterServices(a.app.configurator)
-		// } else if module, ok := appModule.(appmodule.HasServices); ok {
-		// 	if err := module.RegisterServices(a.app.configurator); err != nil {
-		// 		return err
-		// 	}
-		// }
-
-		// moduleMsgRouter := _newModuleMsgRouter(name, s.msgRouterBuilder)
-		// m.RegisterMsgHandlers(moduleMsgRouter)
-		// m.RegisterPreMsgHandler(moduleMsgRouter)
-		// m.RegisterPostMsgHandler(moduleMsgRouter)
-		// // build query handler
-		// moduleQueryRouter := _newModuleMsgRouter(name, s.queryRouterBuilder)
-		// m.RegisterQueryHandler(moduleQueryRouter)
-	}
-
-	return nil
-}
-
 // Build builds an *App instance.
-func (a *AppBuilder) Build(db store.Store, opts ...AppBuilderOption) (*App, error) {
-	for _, opt := range opts {
-		opt(a)
+func (a *AppBuilder) Build(db dbm.DB, traceStore io.Writer, baseAppOptions ...func(*baseapp.BaseApp)) *App {
+	for _, option := range a.app.baseAppOptions {
+		baseAppOptions = append(baseAppOptions, option)
 	}
 
-	if err := a.app.moduleManager.RegisterServicesV2(a.app.msgRouterBuilder); err != nil {
-		return nil, err
+	bApp := baseapp.NewBaseApp(a.app.config.AppName, a.app.logger, db, nil, baseAppOptions...)
+	bApp.SetMsgServiceRouter(a.app.msgServiceRouter)
+	bApp.SetCommitMultiStoreTracer(traceStore)
+	bApp.SetVersion(version.Version)
+	bApp.SetInterfaceRegistry(a.app.interfaceRegistry)
+	bApp.MountStores(a.app.storeKeys...)
+
+	a.app.BaseApp = bApp
+	a.app.configurator = module.NewConfigurator(a.app.cdc, a.app.MsgServiceRouter(), a.app.GRPCQueryRouter())
+
+	if err := a.app.ModuleManager.RegisterServices(a.app.configurator); err != nil {
+		panic(err)
 	}
-	stfMsgHandler, err := a.app.msgRouterBuilder.Build()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build STF message handler: %w", err)
-	}
 
-	upgradeBlocker := a.app.moduleManager.UpgradeBlockerV2()
-	beginBlocker := a.app.moduleManager.BeginBlockV2()
-	endBlocker, valUpdate := a.app.moduleManager.EndBlockV2()
-
-	a.app.stf = stf.NewSTF[servertx.Tx](
-		stfMsgHandler,
-		stfMsgHandler,
-		upgradeBlocker,
-		beginBlocker,
-		endBlocker,
-		valUpdate,
-		func(txBytes []byte) (servertx.Tx, error) { // TODO
-			// return txCodec.Decode(txBytes)
-			return nil, nil
-		},
-		func(state store.ReadonlyState) store.WritableState { // TODO
-			return branch.NewStore(state)
-		},
-	)
-	a.app.db = db
-
-	return a.app, nil
-}
-
-// AppBuilderOption is a function that can be passed to AppBuilder.Build to
-// customize the resulting app.
-type AppBuilderOption func(*AppBuilder)
-
-func AppBuilderWithMempool(mempool mempool.Mempool[servertx.Tx]) AppBuilderOption {
-	return func(a *AppBuilder) {
-		a.app.mempool = mempool
-	}
-}
-
-func AppBuilderWithPrepareBlockHandler(handler coreappmanager.PrepareHandler[servertx.Tx]) AppBuilderOption {
-	return func(a *AppBuilder) {
-		a.app.prepareBlockHandler = handler
-	}
-}
-
-func AppBuilderWithVerifyBlockHandler(handler coreappmanager.ProcessHandler[servertx.Tx]) AppBuilderOption {
-	return func(a *AppBuilder) {
-		a.app.verifyBlockHandler = handler
-	}
+	return a.app
 }

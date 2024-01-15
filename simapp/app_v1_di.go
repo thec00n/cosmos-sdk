@@ -1,4 +1,4 @@
-//go:build app_v2
+//go:build !app_v1_manual && !app_v2
 
 package simapp
 
@@ -219,7 +219,7 @@ func NewSimApp(
 	}
 	baseAppOptions = append(baseAppOptions, voteExtOp, baseapp.SetOptimisticExecution())
 
-	app.App = appBuilder.Build(db, traceStore)
+	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
 	// register streaming services
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
@@ -256,7 +256,7 @@ func NewSimApp(
 	// 	return app.App.InitChainer(ctx, req)
 	// })
 
-	if err := app.Load(); err != nil {
+	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
