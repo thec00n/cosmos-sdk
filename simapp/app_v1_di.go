@@ -1,4 +1,4 @@
-//go:build !app_v1_manual && !app_v2
+//go:build app_v1_di
 
 package simapp
 

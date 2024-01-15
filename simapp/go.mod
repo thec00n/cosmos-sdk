@@ -1,6 +1,6 @@
 module cosmossdk.io/simapp
 
-go 1.21
+go 1.21.5
 
 require (
 	cosmossdk.io/api v0.7.3-0.20231113122742-912390d5fc4a
@@ -8,9 +8,9 @@ require (
 	cosmossdk.io/collections v0.4.0
 	cosmossdk.io/core v0.12.1-0.20231114100755-569e3ff6a0d7
 	cosmossdk.io/depinject v1.0.0-alpha.4
-	cosmossdk.io/log v1.2.1
+	cosmossdk.io/log v1.3.0
 	cosmossdk.io/math v1.2.0
-	cosmossdk.io/store v1.0.1
+	cosmossdk.io/store v1.0.2
 	cosmossdk.io/tools/confix v0.0.0-20230613133644-0a778132a60f
 	cosmossdk.io/x/circuit v0.0.0-20230613133644-0a778132a60f
 	cosmossdk.io/x/evidence v0.0.0-20230613133644-0a778132a60f
@@ -30,12 +30,13 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.32.0
 )
 
 require cosmossdk.io/x/accounts v0.0.0-20231013072015-ec9bcc41ef9c
 
 require (
+	cosmossdk.io/runtime/v2 v2.0.0-00010101000000-000000000000
 	cosmossdk.io/x/auth v0.0.0-00010101000000-000000000000
 	cosmossdk.io/x/authz v0.0.0-00010101000000-000000000000
 	cosmossdk.io/x/bank v0.0.0-00010101000000-000000000000
@@ -54,6 +55,9 @@ require (
 	cloud.google.com/go/iam v1.1.5 // indirect
 	cloud.google.com/go/storage v1.35.1 // indirect
 	cosmossdk.io/errors v1.0.0 // indirect
+	cosmossdk.io/server/v2/appmanager v0.0.0-00010101000000-000000000000 // indirect
+	cosmossdk.io/server/v2/core v0.0.0-00010101000000-000000000000 // indirect
+	cosmossdk.io/server/v2/stf v0.0.0-00010101000000-000000000000 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
@@ -194,17 +198,17 @@ require (
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/exp v0.0.0-20231214170342-aacd6d4b4611 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.15.0 // indirect
-	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
-	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.16.0 // indirect
+	golang.org/x/tools v0.17.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/api v0.153.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
@@ -226,6 +230,15 @@ require (
 // replace (
 // 	<temporary replace>
 // )
+
+// server v2 integration
+replace (
+	cosmossdk.io/runtime/v2 => ../runtime/v2
+	cosmossdk.io/server/v2 => ../server/v2
+	cosmossdk.io/server/v2/appmanager => ../server/v2/appmanager
+	cosmossdk.io/server/v2/core => ../server/v2/core
+	cosmossdk.io/server/v2/stf => ../server/v2/stf
+)
 
 // SimApp on main always tests the latest extracted SDK modules importing the sdk
 replace (
