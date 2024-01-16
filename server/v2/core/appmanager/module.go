@@ -25,28 +25,27 @@ type PostMsgRouterBuilder interface {
 }
 
 type STFModule[T transaction.Tx] interface {
+	// TODO: should we separate the interface to avoid boilerplate in modules when things are not needed?
 	Name() string
 	RegisterMsgHandlers(router MsgRouterBuilder)
 	RegisterQueryHandler(router QueryRouterBuilder)
-}
-
-type HasPreHandlers interface {
+	BeginBlocker() func(ctx context.Context) error
+	EndBlocker() func(ctx context.Context) error
+	UpdateValidators() func(ctx context.Context) ([]ValidatorUpdate, error)
+	TxValidator() func(ctx context.Context, tx T) error // why does the module handle registration
 	RegisterPreMsgHandler(router PreMsgRouterBuilder)
 	RegisterPostMsgHandler(router PostMsgRouterBuilder)
 }
 
-type HasTxValidator[T transaction.Tx] interface {
-	TxValidator() func(ctx context.Context, tx T)
+type UpgradeModule interface {
+	UpgradeBlocker() func(ctx context.Context) error
 }
 
-// TODO move that to core
-// Deprecate HasABCIEndblock and have module manager handle it properly
-type HasUpdateValidators interface {
-	UpdateValidators() func(ctx context.Context) ([]ValidatorUpdate, error)
+type Module[T transaction.Tx] interface {
+	STFModule[T]
 }
 
-// ValidatorUpdate defines what is expected to be returned
-// TODO move that to core
+// Update defines what is expected to be returned
 type ValidatorUpdate struct {
 	PubKey []byte
 	Power  int64 // updated power of the validtor

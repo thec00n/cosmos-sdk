@@ -34,6 +34,7 @@ type MsgRouterBuilder struct {
 }
 
 func (b *MsgRouterBuilder) RegisterHandler(msgType string, handler MsgHandler) error {
+	// panic on override
 	if _, ok := b.handlers[msgType]; ok {
 		return fmt.Errorf("handler already registered: %s", msgType)
 	}

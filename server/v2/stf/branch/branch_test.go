@@ -31,7 +31,8 @@ func TestBranch(t *testing.T) {
 
 	iter := func(s interface {
 		Iterator(start, end []byte) (corestore.Iterator, error)
-	}, start, end string, wantPairs [][2]string) {
+	}, start, end string, wantPairs [][2]string,
+	) {
 		startKey := []byte(start)
 		endKey := []byte(end)
 		if start == "" {
@@ -101,10 +102,6 @@ func TestBranch(t *testing.T) {
 	)
 
 	// test reverse iter
-<<<<<<< HEAD
-
-=======
->>>>>>> server_modular
 }
 
 func newMemState() memStore {

@@ -36,6 +36,7 @@ type STF[T transaction.Tx] struct {
 	branch         func(store store.ReadonlyState) store.WritableState // branch is a function that given a readonly store it returns a writable version of it.
 }
 
+// NewSTF returns a new STF instance.
 func NewSTF[T transaction.Tx](
 	handleMsg func(ctx context.Context, msg Type) (msgResp Type, err error),
 	handleQuery func(ctx context.Context, req Type) (resp Type, err error),
@@ -43,7 +44,6 @@ func NewSTF[T transaction.Tx](
 	doBeginBlock func(ctx context.Context) error,
 	doEndBlock func(ctx context.Context) error,
 	doValidatorUpdate func(ctx context.Context) ([]appmanager.ValidatorUpdate, error),
-	decodeTx func(txBytes []byte) (T, error),
 	branch func(store store.ReadonlyState) store.WritableState,
 ) *STF[T] {
 	return &STF[T]{
@@ -55,7 +55,6 @@ func NewSTF[T transaction.Tx](
 		doTxValidation:    nil, // TODO
 		doValidatorUpdate: doValidatorUpdate,
 		postTxExec:        nil, // TODO
-		decodeTx:          decodeTx,
 		branch:            branch,
 	}
 }
