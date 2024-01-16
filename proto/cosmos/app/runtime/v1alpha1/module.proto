@@ -56,7 +56,8 @@ message Module {
   // pre_blockers specifies the module names of pre blockers
   // to call in the order in which they should be called. If this is left empty
   // no pre blocker will be registered.
-  repeated string pre_blockers = 10; // TODO investigate future of this given the renaming to upgrade blocker to upgrade only
+  repeated string pre_blockers =
+      10; // TODO investigate future of this given the renaming to upgrade blocker to upgrade only
 }
 
 // StoreKeyConfig may be supplied to override the default module store key, which

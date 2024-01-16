@@ -2,6 +2,7 @@ package v2alpha1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/cosmos/gogoproto/proto"
@@ -15,7 +16,6 @@ import (
 type Config struct {
 	SigningModes      map[string]int32
 	ChainID           string
-	SdkConfig         *sdk.Config
 	InterfaceRegistry codectypes.InterfaceRegistry
 }
 
@@ -47,7 +47,7 @@ func (r reflectionServiceServer) GetCodecDescriptor(_ context.Context, _ *GetCod
 }
 
 func (r reflectionServiceServer) GetConfigurationDescriptor(_ context.Context, _ *GetConfigurationDescriptorRequest) (*GetConfigurationDescriptorResponse, error) {
-	return &GetConfigurationDescriptorResponse{Config: r.desc.Configuration}, nil
+	return nil, errors.New("this endpoint has been deprecated, please see auth/Bech32Prefix for the data you are seeking")
 }
 
 func (r reflectionServiceServer) GetQueryServicesDescriptor(_ context.Context, _ *GetQueryServicesDescriptorRequest) (*GetQueryServicesDescriptorResponse, error) {

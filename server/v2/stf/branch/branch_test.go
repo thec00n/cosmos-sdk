@@ -3,17 +3,18 @@ package branch
 import (
 	"testing"
 
-	corestore "cosmossdk.io/core/store"
-	"cosmossdk.io/server/v2/core/store"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/btree"
+
+	corestore "cosmossdk.io/core/store"
+	"cosmossdk.io/server/v2/core/store"
 )
 
 func TestBranch(t *testing.T) {
 	set := func(s interface{ Set([]byte, []byte) error }, key, value string) {
 		require.NoError(t, s.Set([]byte(key), []byte(value)))
 	}
-	get := func(s interface{ Get([]byte) ([]byte, error) }, key string, wantValue string) {
+	get := func(s interface{ Get([]byte) ([]byte, error) }, key, wantValue string) {
 		value, err := s.Get([]byte(key))
 		require.NoError(t, err)
 		if wantValue == "" {
@@ -100,7 +101,10 @@ func TestBranch(t *testing.T) {
 	)
 
 	// test reverse iter
+<<<<<<< HEAD
 
+=======
+>>>>>>> server_modular
 }
 
 func newMemState() memStore {
