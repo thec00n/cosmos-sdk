@@ -25,6 +25,7 @@ message MsgSend {
   string   to_address                      = 2 [(gogoproto.moretags) = "yaml:\"to_address\""];
   repeated cosmos.base.v1beta1.Coin amount = 3
       [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
+  string   lol                      = 4 [(gogoproto.moretags) = "yaml:\"lol\""];
 }
 
 // MsgSendResponse defines the Msg/Send response type.

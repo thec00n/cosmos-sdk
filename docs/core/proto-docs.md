@@ -2212,6 +2212,7 @@ MsgSend represents a message to send coins from one account to another.
 | `from_address` | [string](#string) |  |  |
 | `to_address` | [string](#string) |  |  |
 | `amount` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) | repeated |  |
+| `lol` | [string](#string) |  |  |
 
 
 
