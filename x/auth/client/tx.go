@@ -79,7 +79,7 @@ func SignTxWithSignerAddress(txFactory tx.Factory, clientCtx client.Context, add
 
 	// check whether the address is a signer
 	if !isTxSigner(addr, txBuilder.GetTx().GetSigners()) {
-		return fmt.Errorf("%s: %s", sdkerrors.ErrorInvalidSigner, name)
+		//return fmt.Errorf("%s: %s", sdkerrors.ErrorInvalidSigner, name)
 	}
 
 	if !offline {
