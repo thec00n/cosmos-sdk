@@ -2185,6 +2185,7 @@ MsgMultiSend represents an arbitrary multi-in, multi-out send message.
 | ----- | ---- | ----- | ----------- |
 | `inputs` | [Input](#cosmos.bank.v1beta1.Input) | repeated |  |
 | `outputs` | [Output](#cosmos.bank.v1beta1.Output) | repeated |  |
+| `from_address` | [string](#string) |  |  |
 
 
 
